@@ -41,6 +41,14 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Language Bridge uses the microphone for voice input (speech-to-text).</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Language Bridge converts your speech to text so it can be translated.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Language Bridge uses the camera to scan text for translation (OCR).</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Language Bridge reads photos so it can scan text for translation (OCR).</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

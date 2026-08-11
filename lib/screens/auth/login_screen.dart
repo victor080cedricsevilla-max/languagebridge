@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../../data/app_state.dart';
+import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
-import '../home_shell.dart';
 import 'auth_widgets.dart';
 import 'signup_screen.dart';
 
 /// Sign-in screen.
 ///
-/// UI only — [_submit] validates the form and hands off to [AppState.signIn].
-/// Firebase Auth's `signInWithEmailAndPassword` would slot in there.
+/// [_submit] runs Firebase Auth's email/password sign-in. On success the auth
+/// gate in `main.dart` swaps the root to the app shell, so this screen does not
+/// navigate itself.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -33,36 +34,44 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  void _snack(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSubmitting = true);
-    // Stand-in for the network round trip.
-    await Future<void>.delayed(const Duration(milliseconds: 900));
-    if (!mounted) return;
-
-    AppScope.read(context).signIn(email: _emailController.text.trim());
-    _goHome();
-  }
-
-  void _continueAsDemo() {
-    AppScope.read(context).signInAsDemo();
-    _goHome();
-  }
-
-  void _goHome() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const HomeShell()),
-    );
-  }
-
-  void _notImplemented(String feature) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text('$feature is not wired up in this prototype')),
+    try {
+      await AppScope.read(context).signInWithEmail(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
       );
+      // Success: the auth gate rebuilds to the app shell and disposes us.
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      _snack(authErrorMessage(e));
+    }
+  }
+
+  Future<void> _forgotPassword() async {
+    final email = _emailController.text.trim();
+    if (validateEmail(email) != null) {
+      _snack('Enter your email above first, then tap "Forgot password?"');
+      return;
+    }
+    try {
+      await AppScope.read(context).sendPasswordReset(email);
+      if (!mounted) return;
+      _snack('Password reset email sent to $email');
+    } catch (e) {
+      if (!mounted) return;
+      _snack(authErrorMessage(e));
+    }
   }
 
   @override
@@ -164,7 +173,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               TextButton(
-                onPressed: () => _notImplemented('Password reset'),
+                onPressed: _isSubmitting ? null : _forgotPassword,
                 child: const Text(
                   'Forgot password?',
                   overflow: TextOverflow.ellipsis,
@@ -193,19 +202,11 @@ class _LoginScreenState extends State<LoginScreen> {
           const SizedBox(height: AppSpacing.lg),
 
           OutlinedButton.icon(
-            onPressed: () => _notImplemented('Google Sign-In'),
+            onPressed: () => _snack('Google Sign-In is not available in this build'),
             icon: const GoogleGlyph(),
             label: const Text('Continue with Google'),
           ),
           const SizedBox(height: AppSpacing.md),
-
-          Center(
-            child: TextButton.icon(
-              onPressed: _continueAsDemo,
-              icon: const Icon(Icons.bolt_rounded, size: 18),
-              label: const Text('Skip — explore with demo account'),
-            ),
-          ),
 
           Row(
             mainAxisAlignment: MainAxisAlignment.center,

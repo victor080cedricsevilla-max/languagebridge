@@ -1,0 +1,78 @@
+rules_version = '2';
+
+// Language Bridge — Firestore security rules (Week 4 CRUD).
+//
+// This file contains TWO ready-to-use rule sets. Only ONE
+// `service cloud.firestore { ... }` block may be active at a time — the second
+// one is commented out. Pick the block you want, make sure the other is
+// commented, then publish.
+//
+// How to apply:
+//   • Firebase console → Firestore Database → Rules → paste → Publish, OR
+//   • firebase deploy --only firestore:rules   (Firebase CLI)
+
+// ───────────────────────────────────────────────────────────────────────────
+// DEVELOPMENT  —  default for the Week 4 demo.
+// Open access so Create/Read/Update/Delete work immediately while you build.
+// Do NOT ship this to production.
+// ───────────────────────────────────────────────────────────────────────────
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /languages/{languageId} {
+      allow read, write: if true;
+    }
+    match /lessons/{lessonId} {
+      allow read, write: if true;
+    }
+
+    // History is private to each user (requires sign-in) even in dev mode.
+    match /users/{userId}/history/{recordId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// PRODUCTION  —  enable Firebase Authentication, then swap to this block.
+//
+// Anyone signed in can read the catalog; only admins can change it. An "admin"
+// is any user that has a document at /admins/{their uid}. Create that document
+// by hand in the console for your own account to grant yourself access.
+//
+// To use: comment out the DEVELOPMENT block above and uncomment this one.
+// ───────────────────────────────────────────────────────────────────────────
+// service cloud.firestore {
+//   match /databases/{database}/documents {
+//
+//     function isSignedIn() {
+//       return request.auth != null;
+//     }
+//
+//     function isAdmin() {
+//       return isSignedIn()
+//         && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+//     }
+//
+//     match /languages/{languageId} {
+//       allow read:  if isSignedIn();
+//       allow write: if isAdmin();
+//     }
+//
+//     match /lessons/{lessonId} {
+//       allow read:  if isSignedIn();
+//       allow write: if isAdmin();
+//     }
+//
+//     // Each user reads and writes only their own translation history.
+//     match /users/{userId}/history/{recordId} {
+//       allow read, write: if isSignedIn() && request.auth.uid == userId;
+//     }
+//
+//     // Admin roster is readable by signed-in users but never writable from
+//     // the client — manage it from the Firebase console or a backend.
+//     match /admins/{uid} {
+//       allow read:  if isSignedIn();
+//       allow write: if false;
+//     }
+//   }
+// }

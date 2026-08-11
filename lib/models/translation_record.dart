@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 /// How a translation was captured. Drives the little badge on history rows.
@@ -65,4 +66,35 @@ class TranslationRecord {
     return sourceText.toLowerCase().contains(q) ||
         translatedText.toLowerCase().contains(q);
   }
+
+  /// Builds a record from a Firestore document in a user's `history`
+  /// subcollection. Missing fields fall back to safe defaults.
+  factory TranslationRecord.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? const <String, dynamic>{};
+    return TranslationRecord(
+      id: doc.id,
+      sourceText: (data['sourceText'] as String?) ?? '',
+      translatedText: (data['translatedText'] as String?) ?? '',
+      sourceLangCode: (data['sourceLangCode'] as String?) ?? 'en',
+      targetLangCode: (data['targetLangCode'] as String?) ?? 'en',
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      source: TranslationSource.values.firstWhere(
+        (s) => s.id == data['source'],
+        orElse: () => TranslationSource.text,
+      ),
+      isFavorite: (data['isFavorite'] as bool?) ?? false,
+    );
+  }
+
+  /// The fields written to Firestore. `createdAt` is stored as a concrete
+  /// [Timestamp] (not a server value) so ordering is stable immediately.
+  Map<String, dynamic> toMap() => {
+        'sourceText': sourceText,
+        'translatedText': translatedText,
+        'sourceLangCode': sourceLangCode,
+        'targetLangCode': targetLangCode,
+        'createdAt': Timestamp.fromDate(createdAt),
+        'source': source.id,
+        'isFavorite': isFavorite,
+      };
 }

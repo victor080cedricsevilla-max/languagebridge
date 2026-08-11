@@ -1,34 +1,92 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../models/translation_record.dart';
 import '../models/user_profile.dart';
-import 'mock_data.dart';
+import '../services/auth_service.dart';
+import '../services/history_service.dart';
 
-/// In-memory app state for the UI prototype.
+/// App-wide state: authentication, per-user translation history, and UI prefs.
 ///
-/// Everything here lives only for the life of the process — no Firestore, no
-/// disk. Each mutating method is where a repository call would eventually go.
+/// Auth and history are backed by Firebase ([AuthService] + [HistoryService]);
+/// theme and language preferences are in-memory. The widget tree reads all of
+/// this through [AppScope].
 class AppState extends ChangeNotifier {
-  AppState() : _history = seedHistory();
+  AppState({AuthService? authService, HistoryService? historyService})
+      : _auth = authService ?? AuthService(),
+        _historyService = historyService ?? HistoryService() {
+    // Drive the app off Firebase's auth state: the first event resolves the
+    // splash, and every sign-in/out re-points the history stream.
+    _authSub = _auth.authStateChanges().listen(_onAuthChanged);
+  }
 
-  List<TranslationRecord> _history;
-  UserProfile? _user;
+  final AuthService _auth;
+  final HistoryService _historyService;
+
+  StreamSubscription<User?>? _authSub;
+  StreamSubscription<List<TranslationRecord>>? _historySub;
+
+  User? _firebaseUser;
+  bool _authResolved = false;
+  List<TranslationRecord> _history = [];
+
   ThemeMode _themeMode = ThemeMode.system;
   String _sourceLang = 'en';
-  String _targetLang = 'fil';
+  String _targetLang = 'ceb';
   bool _notificationsEnabled = true;
   bool _offlineModeEnabled = false;
   bool _autoDetectEnabled = true;
 
+  // ---------------------------------------------------------------- auth glue
+
+  void _onAuthChanged(User? user) {
+    _firebaseUser = user;
+    _authResolved = true;
+    _resubscribeHistory(user);
+    notifyListeners();
+  }
+
+  void _resubscribeHistory(User? user) {
+    _historySub?.cancel();
+    _historySub = null;
+    if (user == null) {
+      _history = [];
+      return;
+    }
+    _historySub = _historyService.getHistory(user.uid).listen((records) {
+      _history = records;
+      notifyListeners();
+    });
+  }
+
   // ---------------------------------------------------------------- getters
+
+  /// True once Firebase has reported the initial auth state (splash → app).
+  bool get authResolved => _authResolved;
+  bool get isSignedIn => _firebaseUser != null;
+
+  /// The signed-in user projected onto the app's [UserProfile] shape, or null.
+  UserProfile? get user {
+    final u = _firebaseUser;
+    if (u == null) return null;
+    final displayName = u.displayName?.trim();
+    return UserProfile(
+      name: (displayName != null && displayName.isNotEmpty)
+          ? displayName
+          : _nameFromEmail(u.email ?? ''),
+      email: u.email ?? '',
+      avatarUrl: u.photoURL,
+      memberSince: u.metadata.creationTime,
+    );
+  }
 
   List<TranslationRecord> get history => List.unmodifiable(_history);
 
   List<TranslationRecord> get favorites =>
       List.unmodifiable(_history.where((r) => r.isFavorite));
 
-  UserProfile? get user => _user;
-  bool get isSignedIn => _user != null;
   ThemeMode get themeMode => _themeMode;
   String get sourceLang => _sourceLang;
   String get targetLang => _targetLang;
@@ -42,42 +100,42 @@ class AppState extends ChangeNotifier {
 
   // ------------------------------------------------------------------ auth
 
-  /// Prototype sign-in: accepts anything the form already validated.
-  /// Firebase Auth would replace this body.
-  void signIn({required String email, String? name}) {
-    _user = UserProfile(
-      name: name ?? _nameFromEmail(email),
-      email: email,
-      memberSince: DateTime.now(),
-    );
-    notifyListeners();
+  /// Signs in with email/password. Throws on failure so the caller can show a
+  /// message (see [authErrorMessage]); on success the auth stream updates the
+  /// gate automatically.
+  Future<void> signInWithEmail({
+    required String email,
+    required String password,
+  }) {
+    return _auth.signIn(email: email, password: password);
   }
 
-  /// Signs in as the seeded demo account.
-  void signInAsDemo() {
-    _user = kDemoUser;
-    notifyListeners();
+  /// Creates an account, sets the display name, and signs in. Throws on failure.
+  Future<void> signUpWithEmail({
+    required String name,
+    required String email,
+    required String password,
+  }) {
+    return _auth.signUp(name: name, email: email, password: password);
   }
 
-  void signOut() {
-    _user = null;
-    notifyListeners();
-  }
+  Future<void> sendPasswordReset(String email) =>
+      _auth.sendPasswordReset(email);
 
-  void updateProfile({String? name, String? email}) {
-    final current = _user;
-    if (current == null) return;
-    _user = current.copyWith(name: name, email: email);
+  Future<void> signOut() => _auth.signOut();
+
+  Future<void> updateProfile({required String name}) async {
+    await _auth.updateDisplayName(name);
+    _firebaseUser = _auth.currentUser;
     notifyListeners();
   }
 
   static String _nameFromEmail(String email) {
+    if (email.isEmpty) return 'User';
     final local = email.split('@').first.replaceAll(RegExp(r'[._\-+]'), ' ');
-    return local
-        .split(' ')
-        .where((w) => w.isNotEmpty)
-        .map((w) => w[0].toUpperCase() + w.substring(1))
-        .join(' ');
+    final words = local.split(' ').where((w) => w.isNotEmpty);
+    if (words.isEmpty) return 'User';
+    return words.map((w) => w[0].toUpperCase() + w.substring(1)).join(' ');
   }
 
   // ------------------------------------------------------------- languages
@@ -110,43 +168,71 @@ class AppState extends ChangeNotifier {
   }
 
   // --------------------------------------------------------------- history
+  //
+  // Mutators write to Firestore; the history stream ([_resubscribeHistory])
+  // is the source of truth and updates [_history] when the write lands.
 
-  void addRecord(TranslationRecord record) {
-    _history = [record, ..._history];
-    notifyListeners();
+  String? get _uid => _firebaseUser?.uid;
+
+  Future<void> addRecord(TranslationRecord record) async {
+    final uid = _uid;
+    if (uid == null) return;
+    try {
+      await _historyService.addRecord(uid, record);
+    } catch (e) {
+      debugPrint('addRecord failed: $e');
+    }
   }
 
-  void toggleFavorite(String id) {
-    _history = [
-      for (final r in _history)
-        if (r.id == id) r.copyWith(isFavorite: !r.isFavorite) else r,
-    ];
-    notifyListeners();
+  /// Flips the favorite flag and returns the new value (used for the toast).
+  Future<bool> toggleFavorite(String id) async {
+    final uid = _uid;
+    if (uid == null) return false;
+    final index = _history.indexWhere((r) => r.id == id);
+    if (index == -1) return false;
+    final next = !_history[index].isFavorite;
+    try {
+      await _historyService.setFavorite(uid, id, next);
+    } catch (e) {
+      debugPrint('toggleFavorite failed: $e');
+    }
+    return next;
   }
 
-  /// Removes [id] and returns the deleted record so the caller can offer undo.
+  /// Removes [id] and returns the deleted record (from cache) so the caller can
+  /// offer undo. The Firestore delete runs in the background.
   TranslationRecord? deleteRecord(String id) {
+    final uid = _uid;
+    if (uid == null) return null;
     final index = _history.indexWhere((r) => r.id == id);
     if (index == -1) return null;
     final removed = _history[index];
-    _history = [..._history]..removeAt(index);
-    notifyListeners();
+    _historyService
+        .deleteRecord(uid, id)
+        .catchError((Object e) => debugPrint('deleteRecord failed: $e'));
     return removed;
   }
 
-  /// Puts a deleted record back at [index] (used by the undo action).
+  /// Re-adds a previously deleted record (used by the undo action). Firestore
+  /// re-inserts it in the right place by its original timestamp.
   void restoreRecord(TranslationRecord record, int index) {
-    final next = [..._history];
-    next.insert(index.clamp(0, next.length), record);
-    _history = next;
-    notifyListeners();
+    final uid = _uid;
+    if (uid == null) return;
+    _historyService
+        .addRecord(uid, record)
+        .catchError((Object e) => debugPrint('restoreRecord failed: $e'));
   }
 
   int indexOfRecord(String id) => _history.indexWhere((r) => r.id == id);
 
-  void clearHistory() {
-    _history = [];
-    notifyListeners();
+  Future<void> clearHistory() async {
+    final uid = _uid;
+    if (uid == null) return;
+    try {
+      await _historyService.clearHistory(uid);
+    } catch (e) {
+      debugPrint('clearHistory failed: $e');
+    }
   }
 
   // -------------------------------------------------------------- settings
@@ -169,6 +255,13 @@ class AppState extends ChangeNotifier {
   void setAutoDetectEnabled(bool value) {
     _autoDetectEnabled = value;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    _historySub?.cancel();
+    super.dispose();
   }
 }
 

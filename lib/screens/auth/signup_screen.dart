@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../data/app_state.dart';
+import '../../services/auth_service.dart';
 import '../../theme/app_theme.dart';
-import '../home_shell.dart';
 import 'auth_widgets.dart';
 
 /// Account creation screen.
@@ -62,18 +62,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
 
     setState(() => _isSubmitting = true);
-    await Future<void>.delayed(const Duration(milliseconds: 900));
-    if (!mounted) return;
-
-    AppScope.read(context).signIn(
-      email: _emailController.text.trim(),
-      name: _nameController.text.trim(),
-    );
-
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const HomeShell()),
-      (route) => false,
-    );
+    try {
+      await AppScope.read(context).signUpWithEmail(
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      if (!mounted) return;
+      // Account created and signed in. The auth gate now shows the app shell
+      // underneath, so pop this pushed route to reveal it.
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(authErrorMessage(e))));
+    }
   }
 
   @override

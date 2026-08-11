@@ -5,7 +5,7 @@ import '../data/mock_data.dart';
 import '../theme/app_theme.dart';
 import '../utils/date_format.dart';
 import '../widgets/language_picker.dart';
-import 'auth/login_screen.dart';
+import 'language_management_screen.dart';
 
 /// Profile and settings.
 ///
@@ -130,6 +130,21 @@ class ProfileScreen extends StatelessWidget {
           ),
 
           _Section(
+            title: 'Content Management',
+            children: [
+              _SettingTile(
+                icon: Icons.library_books_outlined,
+                title: 'Manage languages & lessons',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const LanguageManagementScreen(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          _Section(
             title: 'About',
             children: [
               _SettingTile(
@@ -239,8 +254,7 @@ class ProfileScreen extends StatelessWidget {
 
   Future<void> _editProfile(BuildContext context, AppState state) async {
     final nameController = TextEditingController(text: state.user?.name ?? '');
-    final emailController =
-        TextEditingController(text: state.user?.email ?? '');
+    final email = state.user?.email ?? '';
     final formKey = GlobalKey<FormState>();
 
     final saved = await showDialog<bool>(
@@ -255,6 +269,7 @@ class ProfileScreen extends StatelessWidget {
               TextFormField(
                 controller: nameController,
                 textCapitalization: TextCapitalization.words,
+                autofocus: true,
                 decoration: const InputDecoration(labelText: 'Full name'),
                 validator: (v) => (v == null || v.trim().isEmpty)
                     ? 'Name is required'
@@ -262,16 +277,12 @@ class ProfileScreen extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               TextFormField(
-                controller: emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(labelText: 'Email'),
-                validator: (v) {
-                  final value = v?.trim() ?? '';
-                  if (value.isEmpty) return 'Email is required';
-                  final ok = RegExp(r'^[\w.\-+]+@([\w-]+\.)+[\w-]{2,}$')
-                      .hasMatch(value);
-                  return ok ? null : 'Enter a valid email';
-                },
+                initialValue: email,
+                enabled: false,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  helperText: 'Email cannot be changed here',
+                ),
               ),
             ],
           ),
@@ -295,13 +306,22 @@ class ProfileScreen extends StatelessWidget {
     );
 
     if (saved == true) {
-      state.updateProfile(
-        name: nameController.text.trim(),
-        email: emailController.text.trim(),
-      );
+      try {
+        await state.updateProfile(name: nameController.text.trim());
+        if (context.mounted) {
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(const SnackBar(content: Text('Profile updated')));
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(SnackBar(content: Text('Update failed: $e')));
+        }
+      }
     }
     nameController.dispose();
-    emailController.dispose();
   }
 
   void _showAbout(BuildContext context) {
@@ -350,12 +370,10 @@ class ProfileScreen extends StatelessWidget {
       ),
     );
 
-    if (confirmed != true || !context.mounted) return;
-    state.signOut();
-    Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (route) => false,
-    );
+    if (confirmed != true) return;
+    // The auth gate in main.dart swaps the root back to the login screen once
+    // Firebase reports the signed-out state.
+    await state.signOut();
   }
 }
 

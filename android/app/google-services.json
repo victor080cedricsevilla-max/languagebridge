@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "463037529800",
+    "project_id": "my-language-bridge",
+    "storage_bucket": "my-language-bridge.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:463037529800:android:40a800663b3e7ed7c7affd",
+        "android_client_info": {
+          "package_name": "com.languagebridge.languagebridge"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDkwHpdqUGbGz1NPKMA9WXkVhmrjThJ3xg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
