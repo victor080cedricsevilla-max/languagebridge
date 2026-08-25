@@ -5,6 +5,8 @@ workflows:
     instance_type: mac_mini_m2
     environment:
       flutter: stable
+      groups:
+        - api_keys
     scripts:
       - name: Disable Swift Package Manager (unsupported by some plugins)
         script: flutter config --no-enable-swift-package-manager
@@ -18,7 +20,9 @@ workflows:
           cd ..
       - name: Build iOS app for Simulator (unsigned)
         script: |
-          flutter build ios --debug --simulator --no-codesign --verbose
+          flutter build ios --debug --simulator --no-codesign --verbose \
+            --dart-define=TRANSLATE_API_KEY=$TRANSLATE_API_KEY \
+            --dart-define=ELEVENLABS_API_KEY=$ELEVENLABS_API_KEY
       - name: Package .app for Appetize.io
         script: |
           cd build/ios/iphonesimulator
@@ -32,6 +36,8 @@ workflows:
     instance_type: mac_mini_m2
     environment:
       flutter: stable
+      groups:
+        - api_keys
     scripts:
       - name: Disable Swift Package Manager (unsupported by some plugins)
         script: flutter config --no-enable-swift-package-manager
@@ -45,7 +51,9 @@ workflows:
           cd ..
       - name: Build iOS app for real device (unsigned)
         script: |
-          flutter build ios --release --no-codesign --verbose
+          flutter build ios --release --no-codesign --verbose \
+            --dart-define=TRANSLATE_API_KEY=$TRANSLATE_API_KEY \
+            --dart-define=ELEVENLABS_API_KEY=$ELEVENLABS_API_KEY
       - name: Package as unsigned IPA
         script: |
           cd build/ios/iphoneos
