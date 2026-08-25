@@ -25,3 +25,32 @@ workflows:
           zip -r LanguageBridge-simulator.zip Runner.app
     artifacts:
       - build/ios/iphonesimulator/LanguageBridge-simulator.zip
+
+  ios-device-unsigned:
+    name: iOS Device Build (Unsigned, for Sideloadly)
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+    scripts:
+      - name: Disable Swift Package Manager (unsupported by some plugins)
+        script: flutter config --no-enable-swift-package-manager
+      - name: Install Flutter dependencies
+        script: flutter pub get
+      - name: Clean CocoaPods state and reinstall
+        script: |
+          cd ios
+          rm -rf Pods Podfile.lock .symlinks
+          pod install --verbose
+          cd ..
+      - name: Build iOS app for real device (unsigned)
+        script: |
+          flutter build ios --release --no-codesign --verbose
+      - name: Package as unsigned IPA
+        script: |
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r LanguageBridge-unsigned.ipa Payload
+    artifacts:
+      - build/ios/iphoneos/LanguageBridge-unsigned.ipa
