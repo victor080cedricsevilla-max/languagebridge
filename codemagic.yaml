@@ -1,0 +1,19 @@
+workflows:
+  ios-simulator:
+    name: iOS Simulator Build
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+    scripts:
+      - name: Install Flutter dependencies
+        script: flutter pub get
+      - name: Build iOS app for Simulator (unsigned)
+        script: |
+          flutter build ios --debug --simulator --no-codesign
+      - name: Package .app for Appetize.io
+        script: |
+          cd build/ios/iphonesimulator
+          zip -r LanguageBridge-simulator.zip Runner.app
+    artifacts:
+      - build/ios/iphonesimulator/LanguageBridge-simulator.zip
