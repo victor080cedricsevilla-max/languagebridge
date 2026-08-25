@@ -6,6 +6,8 @@ workflows:
     environment:
       flutter: stable
     scripts:
+      - name: Disable Swift Package Manager (unsupported by some plugins)
+        script: flutter config --no-enable-swift-package-manager
       - name: Install Flutter dependencies
         script: flutter pub get
       - name: Build iOS app for Simulator (unsigned)
