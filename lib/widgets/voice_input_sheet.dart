@@ -4,8 +4,9 @@ import '../data/mock_data.dart';
 import '../services/stt_service.dart';
 import '../theme/app_theme.dart';
 
-/// Bottom sheet that runs one speech-to-text session and returns the recognized
-/// text via `Navigator.pop` (or null if cancelled / nothing was said).
+/// Bottom sheet with a press-and-hold mic button: hold to record, release to
+/// finish. Resolves via `Navigator.pop` to the recognized text (or null if
+/// cancelled / nothing was said).
 class VoiceInputSheet extends StatefulWidget {
   const VoiceInputSheet({super.key, required this.stt, required this.langCode});
 
@@ -20,6 +21,7 @@ class VoiceInputSheet extends StatefulWidget {
   ) {
     return showModalBottomSheet<String>(
       context: context,
+      isDismissible: false,
       builder: (_) => VoiceInputSheet(stt: stt, langCode: langCode),
     );
   }
@@ -30,25 +32,33 @@ class VoiceInputSheet extends StatefulWidget {
 
 class _VoiceInputSheetState extends State<VoiceInputSheet> {
   String _text = '';
+  bool _ready = false;
   bool _listening = false;
+  bool _finished = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _start();
+    _prepare();
   }
 
-  Future<void> _start() async {
+  Future<void> _prepare() async {
     final ready = await widget.stt.init();
     if (!mounted) return;
-    if (!ready) {
-      setState(() => _error =
-          'Speech recognition is not available on this device.');
-      return;
-    }
+    setState(() {
+      _ready = ready;
+      if (!ready) {
+        _error = 'Speech recognition is not available on this device.';
+      }
+    });
+  }
+
+  Future<void> _startListening() async {
+    if (!_ready || _listening) return;
     setState(() {
       _listening = true;
+      _text = '';
       _error = null;
     });
     final started = await widget.stt.listen(
@@ -56,7 +66,7 @@ class _VoiceInputSheetState extends State<VoiceInputSheet> {
       onResult: (text, isFinal) {
         if (!mounted) return;
         setState(() => _text = text);
-        if (isFinal) _finish();
+        if (isFinal) _stopListening();
       },
     );
     if (!started && mounted) {
@@ -67,9 +77,17 @@ class _VoiceInputSheetState extends State<VoiceInputSheet> {
     }
   }
 
-  Future<void> _finish() async {
+  Future<void> _stopListening() async {
+    if (!_listening) return;
     await widget.stt.stop();
     if (!mounted) return;
+    setState(() => _listening = false);
+    _finish();
+  }
+
+  void _finish() {
+    if (_finished) return;
+    _finished = true;
     Navigator.of(context).pop(_text.trim().isEmpty ? null : _text.trim());
   }
 
@@ -92,17 +110,28 @@ class _VoiceInputSheetState extends State<VoiceInputSheet> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: (hasError ? AppColors.danger : AppColors.brand)
-                  .withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              hasError ? Icons.mic_off_rounded : Icons.mic_rounded,
-              size: 36,
-              color: hasError ? AppColors.danger : AppColors.brand,
+          GestureDetector(
+            onTapDown: hasError || !_ready ? null : (_) => _startListening(),
+            onTapUp: hasError ? null : (_) => _stopListening(),
+            onTapCancel: hasError ? null : _stopListening,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: hasError
+                    ? AppColors.danger.withValues(alpha: 0.12)
+                    : AppColors.brand.withValues(alpha: _listening ? 1 : 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                hasError ? Icons.mic_off_rounded : Icons.mic_rounded,
+                size: 36,
+                color: hasError
+                    ? AppColors.danger
+                    : _listening
+                        ? Colors.white
+                        : AppColors.brand,
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -110,7 +139,9 @@ class _VoiceInputSheetState extends State<VoiceInputSheet> {
             _error ??
                 (_listening
                     ? 'Listening… speak in ${lang.name}'
-                    : 'Starting…'),
+                    : _ready
+                        ? 'Hold the mic button to speak'
+                        : 'Starting…'),
             textAlign: TextAlign.center,
             style: theme.textTheme.titleMedium,
           ),
@@ -125,24 +156,9 @@ class _VoiceInputSheetState extends State<VoiceInputSheet> {
             ),
           ],
           const SizedBox(height: AppSpacing.lg),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-              ),
-              if (!hasError) ...[
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: _finish,
-                    child: const Text('Done'),
-                  ),
-                ),
-              ],
-            ],
+          OutlinedButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
           ),
         ],
       ),
