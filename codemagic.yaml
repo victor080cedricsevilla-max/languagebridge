@@ -10,9 +10,15 @@ workflows:
         script: flutter config --no-enable-swift-package-manager
       - name: Install Flutter dependencies
         script: flutter pub get
+      - name: Clean CocoaPods state and reinstall
+        script: |
+          cd ios
+          rm -rf Pods Podfile.lock .symlinks
+          pod install --verbose
+          cd ..
       - name: Build iOS app for Simulator (unsigned)
         script: |
-          flutter build ios --debug --simulator --no-codesign
+          flutter build ios --debug --simulator --no-codesign --verbose
       - name: Package .app for Appetize.io
         script: |
           cd build/ios/iphonesimulator
