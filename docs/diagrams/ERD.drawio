@@ -1,0 +1,137 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="ERD" id="erd1">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="900" pageHeight="700" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ===================== User ===================== -->
+        <mxCell id="u0" value="User (Firebase Authentication)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=13;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="240" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="u1" value="PK   uid : string" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="70" width="240" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="u2" value="email : string" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="96" width="240" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="u3" value="displayName : string" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="122" width="240" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="u4" value="creationTime : DateTime" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="148" width="240" height="26" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== HistoryRecord ===================== -->
+        <mxCell id="hr0" value="HistoryRecord (Firestore: users/{uid}/history)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=13;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="260" width="240" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="hr1" value="PK   id : string" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="290" width="240" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="hr2" value="FK   userId : string  (User.uid)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="316" width="240" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="hr3" value="sourceText : string" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="342" width="240" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="hr4" value="translatedText : string" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="368" width="240" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="hr5" value="sourceLangCode : string" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="394" width="240" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="hr6" value="targetLangCode : string" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="420" width="240" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="hr7" value="source : enum(text,voice,camera)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="446" width="240" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="hr8" value="isFavorite : bool" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="472" width="240" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="hr9" value="createdAt : DateTime" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="498" width="240" height="26" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== LanguageModule ===================== -->
+        <mxCell id="lm0" value="LanguageModule (Firestore: languages)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=13;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="480" y="40" width="240" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="lm1" value="PK   id : string" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="480" y="70" width="240" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="lm2" value="name : string" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="480" y="96" width="240" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="lm3" value="description : string" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="480" y="122" width="240" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="lm4" value="imageUrl : string" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="480" y="148" width="240" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="lm5" value="isActive : bool" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="480" y="174" width="240" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="lm6" value="createdAt : DateTime" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="480" y="200" width="240" height="26" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== Lesson ===================== -->
+        <mxCell id="ls0" value="Lesson (Firestore: lessons)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=13;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="480" y="280" width="240" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="ls1" value="PK   id : string" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="480" y="310" width="240" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="ls2" value="FK   languageId : string  (LanguageModule.id)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="480" y="336" width="240" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="ls3" value="title : string" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="480" y="362" width="240" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="ls4" value="description : string" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="480" y="388" width="240" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="ls5" value="category : string" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="480" y="414" width="240" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="ls6" value="content : string" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="480" y="440" width="240" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="ls7" value="translation : string" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="480" y="466" width="240" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="ls8" value="pronunciation : string" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="480" y="492" width="240" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="ls9" value="createdAt : DateTime" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="480" y="518" width="240" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="ls10" value="updatedAt : DateTime" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;align=left;spacingLeft=8;fontSize=11;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="480" y="544" width="240" height="26" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== Relationships ===================== -->
+        <mxCell id="rel1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;startArrow=none;endArrow=ERmany;endFill=0;startArrow=ERone;" edge="1" parent="1" source="u0" target="hr0">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel1lbl" value="1 has many" style="edgeLabel;html=1;fontSize=10;" vertex="1" connectable="0" parent="rel1">
+          <mxGeometry x="0" y="0" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="rel2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;startArrow=none;endArrow=ERmany;endFill=0;startArrow=ERone;" edge="1" parent="1" source="lm0" target="ls0">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel2lbl" value="1 has many" style="edgeLabel;html=1;fontSize=10;" vertex="1" connectable="0" parent="rel2">
+          <mxGeometry x="0" y="0" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
