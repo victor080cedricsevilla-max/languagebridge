@@ -2,8 +2,8 @@ import 'package:flutter/foundation.dart';
 
 /// A language the app can translate to or from.
 ///
-/// [code] follows ISO 639-1 so it maps straight onto the Google Cloud
-/// Translation API when the backend is wired up.
+/// [code] is a Google Cloud Translation language code (for example, `tl`,
+/// `pam`, or `ceb`) and is passed directly to the translation API.
 @immutable
 class Language {
   const Language({
@@ -19,8 +19,7 @@ class Language {
   final String flag;
 
   @override
-  bool operator ==(Object other) =>
-      other is Language && other.code == code;
+  bool operator ==(Object other) => other is Language && other.code == code;
 
   @override
   int get hashCode => code.hashCode;

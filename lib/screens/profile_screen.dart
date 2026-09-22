@@ -5,7 +5,6 @@ import '../data/mock_data.dart';
 import '../theme/app_theme.dart';
 import '../utils/date_format.dart';
 import '../widgets/language_picker.dart';
-import 'language_management_screen.dart';
 
 /// Profile and settings.
 ///
@@ -130,21 +129,6 @@ class ProfileScreen extends StatelessWidget {
           ),
 
           _Section(
-            title: 'Content Management',
-            children: [
-              _SettingTile(
-                icon: Icons.library_books_outlined,
-                title: 'Manage languages & lessons',
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const LanguageManagementScreen(),
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          _Section(
             title: 'About',
             children: [
               _SettingTile(
@@ -167,7 +151,10 @@ class ProfileScreen extends StatelessWidget {
 
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.sm,
+              AppSpacing.md,
+              AppSpacing.md,
             ),
             child: OutlinedButton.icon(
               onPressed: () => _confirmSignOut(context, state),
@@ -188,8 +175,8 @@ class ProfileScreen extends StatelessWidget {
               child: Text(
                 'Language Bridge · v1.0.0 (prototype)',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
           ),
@@ -199,10 +186,10 @@ class ProfileScreen extends StatelessWidget {
   }
 
   static String _themeLabel(ThemeMode mode) => switch (mode) {
-        ThemeMode.system => 'System',
-        ThemeMode.light => 'Light',
-        ThemeMode.dark => 'Dark',
-      };
+    ThemeMode.system => 'System',
+    ThemeMode.light => 'Light',
+    ThemeMode.dark => 'Dark',
+  };
 
   static void _toast(BuildContext context, String message) {
     ScaffoldMessenger.of(context)
@@ -222,7 +209,10 @@ class ProfileScreen extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.sm,
+                AppSpacing.lg,
+                0,
+                AppSpacing.lg,
+                AppSpacing.sm,
               ),
               child: Text(
                 'Appearance',
@@ -271,9 +261,8 @@ class ProfileScreen extends StatelessWidget {
                 textCapitalization: TextCapitalization.words,
                 autofocus: true,
                 decoration: const InputDecoration(labelText: 'Full name'),
-                validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'Name is required'
-                    : null,
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Name is required' : null,
               ),
               const SizedBox(height: AppSpacing.md),
               TextFormField(
@@ -407,7 +396,10 @@ class _ProfileHeader extends StatelessWidget {
         bottom: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.lg,
+            AppSpacing.lg,
+            AppSpacing.md,
+            AppSpacing.lg,
+            AppSpacing.lg,
           ),
           child: Column(
             children: [
@@ -474,7 +466,8 @@ class _ProfileHeader extends StatelessWidget {
                 const SizedBox(height: AppSpacing.sm),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 5,
+                    horizontal: 12,
+                    vertical: 5,
                   ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.18),
@@ -559,7 +552,10 @@ class _Section extends StatelessWidget {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md, 0, AppSpacing.md, AppSpacing.lg,
+        AppSpacing.md,
+        0,
+        AppSpacing.md,
+        AppSpacing.lg,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -653,7 +649,11 @@ class _SwitchTile extends StatelessWidget {
     return SwitchListTile(
       value: value,
       onChanged: onChanged,
-      secondary: Icon(icon, size: 22, color: theme.colorScheme.onSurfaceVariant),
+      secondary: Icon(
+        icon,
+        size: 22,
+        color: theme.colorScheme.onSurfaceVariant,
+      ),
       title: Text(title, style: theme.textTheme.bodyLarge),
       subtitle: Text(
         subtitle,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../models/language_model.dart';
 import '../services/language_service.dart';
+import '../services/starter_content_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/feedback.dart';
 import '../widgets/language_card.dart';
@@ -27,6 +28,31 @@ class _LanguageManagementScreenState extends State<LanguageManagementScreen> {
   final _service = LanguageService();
   final _searchController = TextEditingController();
   String _query = '';
+  bool _importing = false;
+
+  Future<void> _importStarterContent() async {
+    if (_importing) return;
+    setState(() => _importing = true);
+    try {
+      final count = await StarterContentService().importAll();
+      if (!mounted) return;
+      showSnack(
+        context,
+        count == 0
+            ? 'Starter lessons are already imported.'
+            : '$count starter lessons imported. You can now edit them.',
+      );
+    } catch (_) {
+      if (!mounted) return;
+      showSnack(
+        context,
+        'Could not import lessons. Check your connection and content-editing access, then retry.',
+        isError: true,
+      );
+    } finally {
+      if (mounted) setState(() => _importing = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -38,17 +64,17 @@ class _LanguageManagementScreenState extends State<LanguageManagementScreen> {
     final q = _query.trim().toLowerCase();
     if (q.isEmpty) return languages;
     return languages
-        .where((l) =>
-            l.name.toLowerCase().contains(q) ||
-            l.description.toLowerCase().contains(q))
+        .where(
+          (l) =>
+              l.name.toLowerCase().contains(q) ||
+              l.description.toLowerCase().contains(q),
+        )
         .toList();
   }
 
   Future<void> _openForm([LanguageModel? existing]) async {
     await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => LanguageFormScreen(existing: existing),
-      ),
+      MaterialPageRoute(builder: (_) => LanguageFormScreen(existing: existing)),
     );
   }
 
@@ -101,7 +127,33 @@ class _LanguageManagementScreenState extends State<LanguageManagementScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm,
+              AppSpacing.md,
+              0,
+              AppSpacing.md,
+              AppSpacing.sm,
+            ),
+            child: OutlinedButton.icon(
+              onPressed: _importing ? null : _importStarterContent,
+              icon: _importing
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.download_for_offline_outlined),
+              label: Text(
+                _importing
+                    ? 'Importing starter lessons…'
+                    : 'Import starter lessons for editing',
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              0,
+              AppSpacing.md,
+              AppSpacing.sm,
             ),
             child: TextField(
               controller: _searchController,
@@ -158,7 +210,10 @@ class _LanguageManagementScreenState extends State<LanguageManagementScreen> {
 
                 return ListView.separated(
                   padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md, AppSpacing.xs, AppSpacing.md, 96,
+                    AppSpacing.md,
+                    AppSpacing.xs,
+                    AppSpacing.md,
+                    96,
                   ),
                   itemCount: languages.length,
                   separatorBuilder: (_, __) =>

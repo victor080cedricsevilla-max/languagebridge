@@ -14,6 +14,7 @@ class LanguageModel {
     required this.description,
     required this.imageUrl,
     required this.isActive,
+    this.starterContentVersion = 0,
     this.createdAt,
   });
 
@@ -24,17 +25,20 @@ class LanguageModel {
   final String imageUrl;
   final bool isActive;
 
+  /// Set only by the starter importer, not by the editable language form.
+  final int starterContentVersion;
+
   /// Set by the server on create. Null while a create is still pending.
   final DateTime? createdAt;
 
   /// A blank draft used by the "Add Language" form.
   factory LanguageModel.empty() => const LanguageModel(
-        id: '',
-        name: '',
-        description: '',
-        imageUrl: '',
-        isActive: true,
-      );
+    id: '',
+    name: '',
+    description: '',
+    imageUrl: '',
+    isActive: true,
+  );
 
   /// Builds a model from a Firestore document snapshot.
   factory LanguageModel.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -45,6 +49,8 @@ class LanguageModel {
       description: (data['description'] as String?) ?? '',
       imageUrl: (data['imageUrl'] as String?) ?? '',
       isActive: (data['isActive'] as bool?) ?? true,
+      starterContentVersion:
+          (data['starterContentVersion'] as num?)?.toInt() ?? 0,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }
@@ -54,11 +60,11 @@ class LanguageModel {
   /// `createdAt` is intentionally excluded — the service sets it with a server
   /// timestamp on create and never overwrites it on update.
   Map<String, dynamic> toMap() => {
-        'name': name,
-        'description': description,
-        'imageUrl': imageUrl,
-        'isActive': isActive,
-      };
+    'name': name,
+    'description': description,
+    'imageUrl': imageUrl,
+    'isActive': isActive,
+  };
 
   LanguageModel copyWith({
     String? name,
@@ -72,6 +78,7 @@ class LanguageModel {
       description: description ?? this.description,
       imageUrl: imageUrl ?? this.imageUrl,
       isActive: isActive ?? this.isActive,
+      starterContentVersion: starterContentVersion,
       createdAt: createdAt,
     );
   }

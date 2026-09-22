@@ -15,6 +15,8 @@ class Lesson {
     required this.content,
     required this.translation,
     required this.pronunciation,
+    this.meaning = '',
+    this.sourceUrl = '',
     this.createdAt,
     this.updatedAt,
   });
@@ -28,20 +30,22 @@ class Lesson {
   final String content;
   final String translation;
   final String pronunciation;
+  final String meaning;
+  final String sourceUrl;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
   /// A blank draft for the "Add Lesson" form, pre-linked to [languageId].
   factory Lesson.empty(String languageId) => Lesson(
-        id: '',
-        languageId: languageId,
-        title: '',
-        description: '',
-        category: '',
-        content: '',
-        translation: '',
-        pronunciation: '',
-      );
+    id: '',
+    languageId: languageId,
+    title: '',
+    description: '',
+    category: '',
+    content: '',
+    translation: '',
+    pronunciation: '',
+  );
 
   factory Lesson.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? const <String, dynamic>{};
@@ -54,6 +58,8 @@ class Lesson {
       content: (data['content'] as String?) ?? '',
       translation: (data['translation'] as String?) ?? '',
       pronunciation: (data['pronunciation'] as String?) ?? '',
+      meaning: (data['meaning'] as String?) ?? '',
+      sourceUrl: (data['sourceUrl'] as String?) ?? '',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
     );
@@ -62,14 +68,16 @@ class Lesson {
   /// The editable fields written to Firestore. `createdAt`/`updatedAt` are set
   /// by the service with server timestamps, so they are excluded here.
   Map<String, dynamic> toMap() => {
-        'languageId': languageId,
-        'title': title,
-        'description': description,
-        'category': category,
-        'content': content,
-        'translation': translation,
-        'pronunciation': pronunciation,
-      };
+    'languageId': languageId,
+    'title': title,
+    'description': description,
+    'category': category,
+    'content': content,
+    'translation': translation,
+    'pronunciation': pronunciation,
+    'meaning': meaning,
+    'sourceUrl': sourceUrl,
+  };
 
   Lesson copyWith({
     String? languageId,
@@ -79,6 +87,8 @@ class Lesson {
     String? content,
     String? translation,
     String? pronunciation,
+    String? meaning,
+    String? sourceUrl,
   }) {
     return Lesson(
       id: id,
@@ -89,6 +99,8 @@ class Lesson {
       content: content ?? this.content,
       translation: translation ?? this.translation,
       pronunciation: pronunciation ?? this.pronunciation,
+      meaning: meaning ?? this.meaning,
+      sourceUrl: sourceUrl ?? this.sourceUrl,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );

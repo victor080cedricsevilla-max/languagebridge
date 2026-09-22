@@ -38,6 +38,8 @@ class _LessonFormScreenState extends State<LessonFormScreen> {
   late final TextEditingController _contentController;
   late final TextEditingController _translationController;
   late final TextEditingController _pronunciationController;
+  late final TextEditingController _meaningController;
+  late final TextEditingController _sourceController;
 
   bool _isSaving = false;
 
@@ -50,8 +52,11 @@ class _LessonFormScreenState extends State<LessonFormScreen> {
     _categoryController = TextEditingController(text: e?.category ?? '');
     _contentController = TextEditingController(text: e?.content ?? '');
     _translationController = TextEditingController(text: e?.translation ?? '');
-    _pronunciationController =
-        TextEditingController(text: e?.pronunciation ?? '');
+    _meaningController = TextEditingController(text: e?.meaning ?? '');
+    _sourceController = TextEditingController(text: e?.sourceUrl ?? '');
+    _pronunciationController = TextEditingController(
+      text: e?.pronunciation ?? '',
+    );
   }
 
   @override
@@ -62,6 +67,8 @@ class _LessonFormScreenState extends State<LessonFormScreen> {
     _contentController.dispose();
     _translationController.dispose();
     _pronunciationController.dispose();
+    _meaningController.dispose();
+    _sourceController.dispose();
     super.dispose();
   }
 
@@ -80,6 +87,8 @@ class _LessonFormScreenState extends State<LessonFormScreen> {
       category: _categoryController.text.trim(),
       content: _contentController.text.trim(),
       translation: _translationController.text.trim(),
+      meaning: _meaningController.text.trim(),
+      sourceUrl: _sourceController.text.trim(),
       pronunciation: _pronunciationController.text.trim(),
       createdAt: widget.existing?.createdAt,
       updatedAt: widget.existing?.updatedAt,
@@ -124,13 +133,16 @@ class _LessonFormScreenState extends State<LessonFormScreen> {
                   alignment: Alignment.centerLeft,
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm,
+                      AppSpacing.md,
+                      0,
+                      AppSpacing.md,
+                      AppSpacing.sm,
                     ),
                     child: Text(
                       subtitle,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 ),
@@ -205,6 +217,35 @@ class _LessonFormScreenState extends State<LessonFormScreen> {
             ),
             const SizedBox(height: AppSpacing.md),
 
+            const _FieldLabel('Meaning / usage'),
+            TextFormField(
+              controller: _meaningController,
+              textCapitalization: TextCapitalization.sentences,
+              minLines: 2,
+              maxLines: 5,
+              decoration: const InputDecoration(
+                hintText: 'Explain what the word means and when to use it',
+              ),
+              validator: (v) => _required(v, 'Meaning'),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            const _FieldLabel('Word reference URL (optional)'),
+            TextFormField(
+              controller: _sourceController,
+              keyboardType: TextInputType.url,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(hintText: 'https://...'),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) return null;
+                final uri = Uri.tryParse(value.trim());
+                return uri != null &&
+                        uri.host.isNotEmpty &&
+                        (uri.scheme == 'https' || uri.scheme == 'http')
+                    ? null
+                    : 'Enter a valid http or https URL';
+              },
+            ),
+            const SizedBox(height: AppSpacing.md),
             const _FieldLabel('Pronunciation (optional)'),
             TextFormField(
               controller: _pronunciationController,
@@ -251,9 +292,9 @@ class _FieldLabel extends StatelessWidget {
       padding: const EdgeInsets.only(left: 4, bottom: AppSpacing.sm),
       child: Text(
         text,
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+        style: Theme.of(
+          context,
+        ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
       ),
     );
   }

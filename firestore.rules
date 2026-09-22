@@ -29,6 +29,20 @@ service cloud.firestore {
     match /users/{userId}/history/{recordId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+
+    // One latest completed assessment per language, private to its learner.
+    match /users/{userId}/assessments/{languageId} {
+      allow read, delete: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['score', 'total', 'completedAt'])
+        && request.resource.data.score is int
+        && request.resource.data.total is int
+        && request.resource.data.total > 0
+        && request.resource.data.total <= 10
+        && request.resource.data.score >= 0
+        && request.resource.data.score <= request.resource.data.total
+        && request.resource.data.completedAt == request.time;
+    }
   }
 }
 
@@ -66,6 +80,19 @@ service cloud.firestore {
 //     // Each user reads and writes only their own translation history.
 //     match /users/{userId}/history/{recordId} {
 //       allow read, write: if isSignedIn() && request.auth.uid == userId;
+//     }
+//
+//     match /users/{userId}/assessments/{languageId} {
+//       allow read, delete: if isSignedIn() && request.auth.uid == userId;
+//       allow create, update: if isSignedIn() && request.auth.uid == userId
+//         && request.resource.data.keys().hasOnly(['score', 'total', 'completedAt'])
+//         && request.resource.data.score is int
+//         && request.resource.data.total is int
+//         && request.resource.data.total > 0
+//         && request.resource.data.total <= 10
+//         && request.resource.data.score >= 0
+//         && request.resource.data.score <= request.resource.data.total
+//         && request.resource.data.completedAt == request.time;
 //     }
 //
 //     // Admin roster is readable by signed-in users but never writable from

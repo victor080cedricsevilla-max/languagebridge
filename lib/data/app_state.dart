@@ -15,8 +15,8 @@ import '../services/history_service.dart';
 /// this through [AppScope].
 class AppState extends ChangeNotifier {
   AppState({AuthService? authService, HistoryService? historyService})
-      : _auth = authService ?? AuthService(),
-        _historyService = historyService ?? HistoryService() {
+    : _auth = authService ?? AuthService(),
+      _historyService = historyService ?? HistoryService() {
     // Drive the app off Firebase's auth state: the first event resolves the
     // splash, and every sign-in/out re-points the history stream.
     _authSub = _auth.authStateChanges().listen(_onAuthChanged);
@@ -66,6 +66,7 @@ class AppState extends ChangeNotifier {
   /// True once Firebase has reported the initial auth state (splash → app).
   bool get authResolved => _authResolved;
   bool get isSignedIn => _firebaseUser != null;
+  String? get userId => _firebaseUser?.uid;
 
   /// The signed-in user projected onto the app's [UserProfile] shape, or null.
   UserProfile? get user {
@@ -95,8 +96,7 @@ class AppState extends ChangeNotifier {
   bool get autoDetectEnabled => _autoDetectEnabled;
 
   /// Distinct target languages the user has translated into.
-  int get languagesUsed =>
-      _history.map((r) => r.targetLangCode).toSet().length;
+  int get languagesUsed => _history.map((r) => r.targetLangCode).toSet().length;
 
   // ------------------------------------------------------------------ auth
 
@@ -271,7 +271,7 @@ class AppState extends ChangeNotifier {
 /// reads once without subscribing (use inside callbacks).
 class AppScope extends InheritedNotifier<AppState> {
   const AppScope({super.key, required AppState state, required super.child})
-      : super(notifier: state);
+    : super(notifier: state);
 
   static AppState of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<AppScope>();
