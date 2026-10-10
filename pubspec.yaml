@@ -43,6 +43,8 @@ dependencies:
   google_mlkit_text_recognition: ^0.16.0
   image_picker: ^1.2.2
   audioplayers: ^6.7.1
+  camera: ^0.12.0+1
+  camera_android: ^0.10.10+17
 
 dev_dependencies:
   flutter_test:

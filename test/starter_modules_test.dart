@@ -22,8 +22,8 @@ void main() {
       final ids = <String>{};
       for (final module in StarterModules.all) {
         final lessons = module.lessons();
-        expect(lessons, hasLength(12));
-        expect(ModuleQuiz.eligibleLessons(lessons), hasLength(12));
+        expect(lessons, hasLength(60));
+        expect(ModuleQuiz.eligibleLessons(lessons), hasLength(60));
         for (final lesson in lessons) {
           expect(ids.add(lesson.id), isTrue);
           expect(lesson.meaning, isNotEmpty);
@@ -36,7 +36,7 @@ void main() {
           expect(question.choices.where(question.isCorrect), hasLength(1));
         }
       }
-      expect(ids, hasLength(84));
+      expect(ids, hasLength(420));
     },
   );
 
@@ -51,7 +51,7 @@ void main() {
       meaning: 'Reviewed by the teacher',
     );
     final merged = StarterModules.mergeLessons(module, module.id, [edited]);
-    expect(merged, hasLength(12));
+    expect(merged, hasLength(60));
     expect(merged.first.meaning, 'Reviewed by the teacher');
   });
 
@@ -60,15 +60,15 @@ void main() {
     () async {
       final db = FakeFirebaseFirestore();
       final service = StarterContentService(firestore: db);
-      expect(await service.importAll(), 84);
+      expect(await service.importAll(), 420);
       expect((await db.collection('languages').get()).docs, hasLength(7));
-      expect((await db.collection('lessons').get()).docs, hasLength(84));
+      expect((await db.collection('lessons').get()).docs, hasLength(420));
       await db.collection('lessons').doc('starter-pam-water').update({
         'meaning': 'Teacher correction',
       });
       await db.collection('lessons').doc('starter-pam-house').delete();
       expect(await service.importAll(), 0);
-      expect((await db.collection('lessons').get()).docs, hasLength(83));
+      expect((await db.collection('lessons').get()).docs, hasLength(419));
       expect(
         (await db.collection('lessons').doc('starter-pam-water').get())
             .data()?['meaning'],
@@ -81,7 +81,7 @@ void main() {
       );
       await repository.watchLanguages().first;
       final lessons = await repository.watchLessons('starter-pam').first;
-      expect(lessons, hasLength(11));
+      expect(lessons, hasLength(59));
       expect(lessons.any((l) => l.id == 'starter-pam-house'), isFalse);
     },
   );
@@ -102,7 +102,7 @@ void main() {
           .first
           .copyWith(meaning: 'Teacher meaning');
       await db.collection('lessons').doc('teacher-lesson').set(lesson.toMap());
-      expect(await StarterContentService(firestore: db).importAll(), 83);
+      expect(await StarterContentService(firestore: db).importAll(), 419);
       final languages = (await db.collection('languages').get()).docs
           .map(LanguageModel.fromDoc)
           .toList();
@@ -114,7 +114,7 @@ void main() {
           .collection('lessons')
           .where('languageId', isEqualTo: 'teacher-language')
           .get();
-      expect(lessons.docs, hasLength(12));
+      expect(lessons.docs, hasLength(60));
       expect(
         lessons.docs
             .singleWhere((l) => l.id == 'teacher-lesson')
@@ -147,6 +147,54 @@ void main() {
             .first;
         expect(ModuleQuiz.generate(lessons), hasLength(10));
       }
+    },
+  );
+
+  test(
+    'version 1 gets new words without restoring deleted old words or edits',
+    () async {
+      final db = FakeFirebaseFirestore();
+      final module = StarterModules.all.singleWhere((m) => m.code == 'pam');
+      await db.collection('languages').doc(module.id).set({
+        ...module.language.toMap(),
+        'starterContentVersion': 1,
+      });
+      // The original twelve records, with one intentionally deleted.
+      for (final lesson in module.lessons().take(12)) {
+        if (lesson.id.endsWith('-house')) continue;
+        await db.collection('lessons').doc(lesson.id).set(lesson.toMap());
+      }
+      await db.collection('lessons').doc('starter-pam-water').update({
+        'meaning': 'Teacher edit',
+      });
+      final repo = FirestoreModuleRepository(userId: 'learner', firestore: db);
+      await repo.watchLanguages().first;
+      final visible = await repo.watchLessons(module.id).first;
+      expect(visible, hasLength(59));
+      expect(visible.any((l) => l.id == 'starter-pam-house'), isFalse);
+      expect(
+        visible.singleWhere((l) => l.id == 'starter-pam-water').meaning,
+        'Teacher edit',
+      );
+      expect(visible.any((l) => l.id == 'starter-pam-mother'), isTrue);
+
+      final importer = StarterContentService(firestore: db);
+      expect(
+        await importer.importAll(),
+        408,
+      ); // 48 new + 6 untouched modules x 60.
+      expect(await importer.importAll(), 0);
+      final saved = await db
+          .collection('lessons')
+          .where('languageId', isEqualTo: module.id)
+          .get();
+      expect(saved.docs, hasLength(59));
+      expect(saved.docs.any((d) => d.id == 'starter-pam-house'), isFalse);
+      expect(
+        (await db.collection('languages').doc(module.id).get())
+            .data()?['starterContentVersion'],
+        2,
+      );
     },
   );
 

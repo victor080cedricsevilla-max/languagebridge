@@ -138,10 +138,13 @@ void main() {
     if (const bool.fromEnvironment('CAPTURE_MODULE_UI')) {
       final fontPath = Platform.environment['REVIEW_FONT_PATH'];
       if (fontPath != null) {
-        await (FontLoader(
-              'Roboto',
-            )..addFont(File(fontPath).readAsBytes().then(ByteData.sublistView)))
-            .load();
+        // Unthemed button labels use the test engine's default Ahem family.
+        for (final family in ['Roboto', 'Ahem']) {
+          await (FontLoader(family)..addFont(
+                File(fontPath).readAsBytes().then(ByteData.sublistView),
+              ))
+              .load();
+        }
       }
       await (FontLoader(
         'MaterialIcons',
@@ -254,8 +257,7 @@ void main() {
       expect(repo.latest.length, 1);
       expect(repo.saves, 2);
       await tapVisible(tester, find.text('Back to lessons'));
-      await tester.drag(find.byType(ListView).first, const Offset(0, 3000));
-      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('0 / 4 correct · 0%'));
       expect(find.text('0 / 4 correct · 0%'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
@@ -311,7 +313,7 @@ void main() {
   });
 
   testWidgets(
-    'starter vocabulary displays meanings and an accessible reference',
+    'continuous lesson has no cards and assessment follows the full reading',
     (tester) async {
       phone(tester, width: 360, height: 800);
       final module = StarterModules.all.singleWhere((m) => m.code == 'pam');
@@ -333,23 +335,60 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      expect(find.byType(Card), findsNothing);
+      expect(find.text('60 words and meanings'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('start-module-quiz')).hitTestable(),
+        findsNothing,
+      );
+      await capture(tester, 'kapampangan-reading-page');
       await tester.enterText(find.byType(TextField), 'danum');
       await tester.pumpAndSettle();
       expect(
         find.byWidgetPredicate(
-          (widget) => widget is SelectableText && widget.data == 'danum',
+          (widget) =>
+              widget is SelectableText &&
+              widget.textSpan?.toPlainText() == 'danum — Water',
         ),
         findsOneWidget,
       );
-      expect(find.text('Water'), findsOneWidget);
+      expect(find.byKey(const ValueKey('start-module-quiz')), findsNothing);
       await capture(tester, 'kapampangan-starter-lesson');
-      await tapVisible(tester, find.text('Word reference'));
+      await tester.tap(find.byTooltip('Lesson references'));
+      await tester.pumpAndSettle();
       expect(
         find.text('https://en.wiktionary.org/wiki/danum#Kapampangan'),
         findsOneWidget,
       );
       expect(tester.takeException(), isNull);
       await tapVisible(tester, find.text('Close'));
+      await tapVisible(tester, find.text('Return to full lesson'));
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('start-module-quiz')),
+        500,
+        maxScrolls: 100,
+        scrollable: find
+            .descendant(
+              of: find.byKey(const PageStorageKey('lesson-document')),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+        continuous: true,
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Take Assessment'), findsOneWidget);
+      // The final word precedes the assessment; there is no mid-lesson shortcut.
+      expect(
+        tester
+            .getTopLeft(
+              find.byKey(const ValueKey('lesson-entry-starter-pam-white')),
+            )
+            .dy,
+        lessThan(
+          tester.getTopLeft(find.byKey(const ValueKey('start-module-quiz'))).dy,
+        ),
+      );
+      await capture(tester, 'kapampangan-reading-end');
       await tapVisible(tester, find.byKey(const ValueKey('start-module-quiz')));
       expect(find.byKey(const ValueKey('quiz-prompt')), findsOneWidget);
       expect(tester.takeException(), isNull);

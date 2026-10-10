@@ -30,12 +30,17 @@ class StarterContentService {
             ),
           )
           .toSet();
-      final lessons = module.lessons(languageId: languageId);
       added += await _db.runTransaction<int>((transaction) async {
         final current = await transaction.get(languageRef);
-        if (((current.data()?['starterContentVersion'] as num?) ?? 0) >= 1) {
+        final importedVersion =
+            ((current.data()?['starterContentVersion'] as num?) ?? 0).toInt();
+        if (importedVersion >= StarterModules.contentVersion) {
           return 0;
         }
+        final lessons = module.lessons(
+          languageId: languageId,
+          afterVersion: importedVersion,
+        );
         final refs = lessons
             .map((l) => _db.collection('lessons').doc(l.id))
             .toList();
@@ -48,10 +53,12 @@ class StarterContentService {
           transaction.set(languageRef, {
             ...module.language.toMap(),
             'createdAt': FieldValue.serverTimestamp(),
-            'starterContentVersion': 1,
+            'starterContentVersion': StarterModules.contentVersion,
           });
         } else {
-          transaction.update(languageRef, {'starterContentVersion': 1});
+          transaction.update(languageRef, {
+            'starterContentVersion': StarterModules.contentVersion,
+          });
         }
         var count = 0;
         for (var i = 0; i < lessons.length; i++) {

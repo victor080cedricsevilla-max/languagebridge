@@ -9,14 +9,20 @@ Its edit icon opens the existing language and lesson management screens.
 
 Each language is a module. Its `lessons` records are dictionary entries containing
 a word or phrase (`content`), translation, meaning/usage, category, and optional
-pronunciation. Learners can search the entries and revisit them at any time.
+pronunciation. The reader displays a continuous document with topic headings,
+words, translations, and Filipino meanings, rather than a card for every word.
+Learners can search the entries and revisit them at any time. Search results
+offer **Return to full lesson**; **Take Assessment** appears after the complete
+lesson, alongside the latest assessment score.
 The new `meaning` field is editable in the lesson form. Older records still load;
 their description is displayed when a meaning has not yet been supplied.
 
-The app includes 84 source-referenced entries: 12 each for Filipino / Tagalog,
+The app includes 420 source-referenced entries: 60 each for Filipino / Tagalog,
 Kapampangan, Cebuano, Ilocano, Hiligaynon, Central Bikol, and Pangasinan. These
-cover everyday words, body and nature, and numbers. Each includes an English
-translation, Filipino explanation, and a **Word reference** link. They are
+cover people and family, questions, food, body parts, nature and weather,
+everyday actions, descriptions, and numbers. Each includes an English
+translation, Filipino explanation, and source URL. The app bar's **Lesson
+references** button groups the reference links and their associated words. They are
 available in the learner view without importing or calling a translation API.
 See [the vocabulary and sources](starter-module-sources.md).
 
@@ -30,8 +36,11 @@ To edit or add content:
 
 Import reuses matching existing language IDs and preserves existing words,
 edits, and inactive flags. Repeating it does not add duplicates. A version
-marker means that after import, cloud entries become authoritative, so deleted
-lessons stay deleted. Before import, bundled words supplement cloud content;
+marker tracks which bundled words have been imported. Version 2 adds 48 words
+per language to the original 12. A version-1 catalog immediately displays the
+new words; importing again saves only that new generation for editing.
+Deleted entries from an already imported generation stay deleted, and edited
+entries remain unchanged. Before import, bundled words supplement cloud content;
 cloud entries with the same word or stable ID take precedence. Deactivate a
 language to hide its module. English remains a translation/gloss language,
 not an additional Philippine starter module. Custom empty modules show an
@@ -71,12 +80,15 @@ not automatically publish Firestore rules.
 `flutter test test/module_test.dart` covers shuffling, ambiguous entries,
 catalog search, inactive modules, small screens with keyboard insets, scoring,
 repeat attempts replacing the score, save retries, abandoning a quiz, and all
-four navigation destinations. It uses an in-memory repository; live Firebase
+four navigation destinations. It also checks the continuous 60-word reader,
+search, references, and assessment placement at the end. It uses an in-memory
+repository; live Firebase
 authentication and persistence require a configured project and published rules.
 
 `flutter test test/starter_modules_test.dart` verifies coverage of all seven
 languages, quiz-ready vocabulary, compatibility with older documents, optional
-import idempotence, existing content preservation, and deletion after import.
+import idempotence, existing content preservation, deletion after import, and
+version-1 upgrades that add new vocabulary while preserving edits and deletions.
 Import and repository tests use fake Firestore; they do not write live data.
 
 The older `test/widget_test.dart` still assumes the removed demo-login flow and

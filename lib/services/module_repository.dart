@@ -24,7 +24,7 @@ class FirestoreModuleRepository implements ModuleRepository {
   final String userId;
   final FirebaseFirestore _db;
   final _starterByLanguageId = <String, StarterModule>{};
-  final _importedLanguageIds = <String>{};
+  final _importedVersions = <String, int>{};
 
   DocumentReference<Map<String, dynamic>> _assessment(String languageId) => _db
       .collection('users')
@@ -41,13 +41,11 @@ class FirestoreModuleRepository implements ModuleRepository {
       ).getLanguages()) {
         receivedCatalog = true;
         _starterByLanguageId.clear();
-        _importedLanguageIds.clear();
+        _importedVersions.clear();
         for (final language in remote) {
           final starter = StarterModules.forLanguage(language);
           if (starter != null) _starterByLanguageId[language.id] = starter;
-          if (language.starterContentVersion > 0) {
-            _importedLanguageIds.add(language.id);
-          }
+          _importedVersions[language.id] = language.starterContentVersion;
         }
         yield StarterModules.mergeLanguages(
           remote,
@@ -66,19 +64,25 @@ class FirestoreModuleRepository implements ModuleRepository {
   Stream<List<Lesson>> watchLessons(String languageId) async* {
     final starter =
         _starterByLanguageId[languageId] ?? StarterModules.forId(languageId);
-    if (starter != null && !_importedLanguageIds.contains(languageId)) {
+    int importedVersion() => _importedVersions[languageId] ?? 0;
+    if (starter != null && importedVersion() == 0) {
       yield starter.lessons(languageId: languageId);
     }
     try {
       await for (final lessons in LessonService(
         firestore: _db,
       ).getLessonsByLanguage(languageId)) {
-        yield starter == null || _importedLanguageIds.contains(languageId)
+        yield starter == null
             ? lessons
-            : StarterModules.mergeLessons(starter, languageId, lessons);
+            : StarterModules.mergeLessons(
+                starter,
+                languageId,
+                lessons,
+                importedVersion: importedVersion(),
+              );
       }
     } catch (error) {
-      if (starter == null || _importedLanguageIds.contains(languageId)) rethrow;
+      if (starter == null || importedVersion() > 0) rethrow;
       debugPrint('Cloud lessons unavailable; using bundled words: $error');
     }
   }

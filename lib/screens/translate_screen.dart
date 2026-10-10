@@ -1,32 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../data/app_state.dart';
 import '../data/mock_data.dart';
 import '../models/translation_record.dart';
 import '../services/cloud_tts_service.dart';
-import '../services/ocr_service.dart';
 import '../services/stt_service.dart';
 import '../services/translation_api.dart';
 import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/language_picker.dart';
+import '../widgets/live_camera_card.dart';
 import '../widgets/voice_input_sheet.dart';
 
 /// Main text-translation screen.
 ///
 /// Text translation goes through [TranslationApi] (Google Cloud Translation).
-/// Voice input uses [SttService], camera scanning uses [OcrService], and
+/// Voice input uses [SttService], camera scanning uses [LiveCameraCard], and
 /// reading the result aloud uses [TtsService].
 class TranslateScreen extends StatefulWidget {
-  const TranslateScreen({super.key});
+  const TranslateScreen({super.key, this.isActive = true});
+
+  final bool isActive;
 
   @override
   State<TranslateScreen> createState() => _TranslateScreenState();
 }
 
-class _TranslateScreenState extends State<TranslateScreen> {
+class _TranslateScreenState extends State<TranslateScreen>
+    with WidgetsBindingObserver {
   static const _maxChars = 500;
 
   final _inputController = TextEditingController();
@@ -34,7 +36,11 @@ class _TranslateScreenState extends State<TranslateScreen> {
   final _tts = TtsService();
   final _cloudTts = CloudTtsService();
   final _stt = SttService();
-  final _ocr = OcrService();
+  bool _cameraMode = false;
+  bool _foreground = true;
+  int _requestVersion = 0;
+  String? _pendingLiveText;
+  bool _liveRequestRunning = false;
 
   String? _resultText;
   String? _errorMessage;
@@ -44,19 +50,73 @@ class _TranslateScreenState extends State<TranslateScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _inputController.addListener(_onInputChanged);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _requestVersion++;
     _inputController
       ..removeListener(_onInputChanged)
       ..dispose();
     _inputFocus.dispose();
     _tts.dispose();
     _cloudTts.dispose();
-    _ocr.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant TranslateScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.isActive && oldWidget.isActive) _stopCamera();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Permission dialogs temporarily make iOS inactive during camera startup.
+    if (state == AppLifecycleState.inactive) return;
+    _foreground = state == AppLifecycleState.resumed;
+    if (!_foreground && _cameraMode) _stopCamera();
+  }
+
+  void _stopCamera() {
+    _requestVersion++;
+    _pendingLiveText = null;
+    setState(() {
+      _cameraMode = false;
+      _isTranslating = false;
+    });
+  }
+
+  void _startCamera() {
+    if (_cameraMode) return;
+    _inputFocus.unfocus();
+    _requestVersion++;
+    _inputController.clear();
+    setState(() {
+      _cameraMode = true;
+      _isTranslating = false;
+    });
+  }
+
+  Future<void> _onLiveText(String text) async {
+    if (!_cameraMode || !widget.isActive || !_foreground) return;
+    _requestVersion++;
+    _inputController.text = text;
+    _pendingLiveText = text;
+    if (_liveRequestRunning) return;
+    _liveRequestRunning = true;
+    try {
+      // One request at a time; intermediate camera readings are replaced.
+      while (mounted && _cameraMode && _pendingLiveText != null) {
+        _pendingLiveText = null;
+        await _translate();
+      }
+    } finally {
+      _liveRequestRunning = false;
+    }
   }
 
   void _onInputChanged() {
@@ -79,26 +139,30 @@ class _TranslateScreenState extends State<TranslateScreen> {
 
     _inputFocus.unfocus();
     final state = AppScope.read(context);
+    final from = state.sourceLang;
+    final to = state.targetLang;
+    final version = ++_requestVersion;
     setState(() {
       _isTranslating = true;
       _errorMessage = null;
       _resultText = null;
+      _lastRecordId = null;
     });
 
     try {
       final translated = await TranslationApi.translate(
         text: text,
-        from: state.sourceLang,
-        to: state.targetLang,
+        from: from,
+        to: to,
       );
-      if (!mounted) return;
+      if (!mounted || version != _requestVersion) return;
 
       final record = TranslationRecord(
         id: DateTime.now().microsecondsSinceEpoch.toString(),
         sourceText: text,
         translatedText: translated,
-        sourceLangCode: state.sourceLang,
-        targetLangCode: state.targetLang,
+        sourceLangCode: from,
+        targetLangCode: to,
         createdAt: DateTime.now(),
       );
       state.addRecord(record);
@@ -109,13 +173,13 @@ class _TranslateScreenState extends State<TranslateScreen> {
         _isTranslating = false;
       });
     } on TranslationException catch (e) {
-      if (!mounted) return;
+      if (!mounted || version != _requestVersion) return;
       setState(() {
         _errorMessage = e.message;
         _isTranslating = false;
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || version != _requestVersion) return;
       setState(() {
         _errorMessage = 'Something went wrong. Please try again.';
         _isTranslating = false;
@@ -124,11 +188,13 @@ class _TranslateScreenState extends State<TranslateScreen> {
   }
 
   void _clear() {
+    _requestVersion++;
     _inputController.clear();
     setState(() {
       _resultText = null;
       _errorMessage = null;
       _lastRecordId = null;
+      _isTranslating = false;
     });
   }
 
@@ -179,6 +245,7 @@ class _TranslateScreenState extends State<TranslateScreen> {
 
   /// Captures speech and puts it in the input field, then translates it.
   Future<void> _startVoiceInput() async {
+    if (_cameraMode) _stopCamera();
     final source = AppScope.read(context).sourceLang;
     final text = await VoiceInputSheet.show(context, _stt, source);
     if (text == null || text.isEmpty || !mounted) return;
@@ -186,46 +253,18 @@ class _TranslateScreenState extends State<TranslateScreen> {
     await _translate();
   }
 
-  /// Scans text from a photo/gallery image (OCR) into the input field.
-  Future<void> _scanText() async {
-    final source = await _pickImageSource();
-    if (source == null || !mounted) return;
-    try {
-      final text = await _ocr.scanText(source);
-      if (!mounted || text == null) return; // null = cancelled
-      if (text.isEmpty) {
-        _toast('No text found in the image');
-        return;
-      }
-      _inputController.text = text;
-    } catch (_) {
-      if (!mounted) return;
-      _toast('Could not scan the image');
+  void _languageChanged() {
+    _requestVersion++;
+    _pendingLiveText = null;
+    setState(() {
+      _resultText = null;
+      _errorMessage = null;
+      _lastRecordId = null;
+      _isTranslating = false;
+    });
+    if (_cameraMode && _inputController.text.trim().isNotEmpty) {
+      _onLiveText(_inputController.text.trim());
     }
-  }
-
-  Future<ImageSource?> _pickImageSource() {
-    return showModalBottomSheet<ImageSource>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_camera_rounded),
-              title: const Text('Take a photo'),
-              onTap: () => Navigator.pop(context, ImageSource.camera),
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_rounded),
-              title: const Text('Choose from gallery'),
-              onTap: () => Navigator.pop(context, ImageSource.gallery),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   Future<void> _pickLanguage({required bool isSource}) async {
@@ -235,8 +274,9 @@ class _TranslateScreenState extends State<TranslateScreen> {
       selectedCode: isSource ? state.sourceLang : state.targetLang,
       title: isSource ? 'Translate from' : 'Translate to',
     );
-    if (code == null) return;
+    if (code == null || !mounted) return;
     isSource ? state.setSourceLang(code) : state.setTargetLang(code);
+    _languageChanged();
   }
 
   @override
@@ -253,58 +293,127 @@ class _TranslateScreenState extends State<TranslateScreen> {
             targetCode: state.targetLang,
             onSourceTap: () => _pickLanguage(isSource: true),
             onTargetTap: () => _pickLanguage(isSource: false),
-            onSwap: state.swapLanguages,
+            onSwap: () {
+              state.swapLanguages();
+              _languageChanged();
+            },
             onNotifications: () => _toast('No new notifications'),
           ),
           Expanded(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.xl,
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.xl,
               ),
               children: [
-                _InputCard(
-                  controller: _inputController,
-                  focusNode: _inputFocus,
-                  langCode: state.sourceLang,
-                  maxChars: _maxChars,
-                  onClear: _clear,
-                  onVoice: _startVoiceInput,
-                  onCamera: _scanText,
-                ),
+                if (_cameraMode && widget.isActive && _foreground)
+                  LiveCameraCard(onText: _onLiveText, onClose: _stopCamera)
+                else
+                  _InputCard(
+                    controller: _inputController,
+                    focusNode: _inputFocus,
+                    langCode: state.sourceLang,
+                    maxChars: _maxChars,
+                    onClear: _clear,
+                    onVoice: _startVoiceInput,
+                    onCamera: _startCamera,
+                  ),
                 const SizedBox(height: AppSpacing.md),
 
-                FilledButton.icon(
-                  key: const ValueKey('translate-button'),
-                  onPressed: _inputController.text.trim().isEmpty ||
+                if (_cameraMode)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (_isTranslating)
+                          const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        else
+                          const Icon(Icons.auto_awesome_rounded, size: 18),
+                        const SizedBox(width: 8),
+                        Text(
                           _isTranslating
-                      ? null
-                      : _translate,
-                  icon: _isTranslating
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.4,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.auto_awesome_rounded, size: 20),
-                  label: Text(_isTranslating ? 'Translating…' : 'Translate'),
-                ),
+                              ? 'Translating...'
+                              : 'Translates automatically',
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  FilledButton.icon(
+                    key: const ValueKey('translate-button'),
+                    onPressed:
+                        _inputController.text.trim().isEmpty || _isTranslating
+                        ? null
+                        : _translate,
+                    icon: _isTranslating
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.4,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.auto_awesome_rounded, size: 20),
+                    label: Text(_isTranslating ? 'Translating…' : 'Translate'),
+                  ),
 
                 if (_errorMessage != null) ...[
                   const SizedBox(height: AppSpacing.md),
-                  _ErrorCard(message: _errorMessage!, onRetry: _translate),
+                  _ErrorCard(
+                    message: _errorMessage!,
+                    onRetry: () {
+                      if (_cameraMode) {
+                        _onLiveText(_inputController.text);
+                      } else {
+                        _translate();
+                      }
+                    },
+                  ),
                 ],
 
+                if (_cameraMode &&
+                    _resultText == null &&
+                    _errorMessage == null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            languageByCode(state.targetLang).name,
+                            style: theme.textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            _isTranslating
+                                ? 'Translating detected text...'
+                                : 'Point the camera at words or a sentence. The translation will appear here.',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 if (_resultText != null) ...[
                   const SizedBox(height: AppSpacing.md),
                   _ResultCard(
                     text: _resultText!,
                     langCode: state.targetLang,
-                    isFavorite: _lastRecordId != null &&
-                        state.history
-                            .any((r) => r.id == _lastRecordId && r.isFavorite),
+                    isFavorite:
+                        _lastRecordId != null &&
+                        state.history.any(
+                          (r) => r.id == _lastRecordId && r.isFavorite,
+                        ),
                     onCopy: _copyResult,
                     onSpeak: _speakResult,
                     onFavorite: _toggleFavorite,
@@ -313,12 +422,14 @@ class _TranslateScreenState extends State<TranslateScreen> {
                 ],
 
                 const SizedBox(height: AppSpacing.lg),
-                Text('Other ways to translate',
-                    style: theme.textTheme.titleMedium),
+                Text(
+                  'Other ways to translate',
+                  style: theme.textTheme.titleMedium,
+                ),
                 const SizedBox(height: AppSpacing.sm),
                 _QuickActions(
                   onVoice: _startVoiceInput,
-                  onCamera: _scanText,
+                  onCamera: _startCamera,
                   onInfo: _toast,
                 ),
               ],
@@ -364,15 +475,21 @@ class _Header extends StatelessWidget {
         bottom: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.lg,
+            AppSpacing.md,
+            AppSpacing.sm,
+            AppSpacing.md,
+            AppSpacing.lg,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  const Icon(Icons.g_translate_rounded,
-                      color: Colors.white, size: 26),
+                  const Icon(
+                    Icons.g_translate_rounded,
+                    color: Colors.white,
+                    size: 26,
+                  ),
                   const SizedBox(width: AppSpacing.sm),
                   const Expanded(
                     child: Text(
@@ -623,7 +740,8 @@ class _ResultCard extends StatelessWidget {
                 const SizedBox(width: AppSpacing.sm),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 3,
+                    horizontal: 8,
+                    vertical: 3,
                   ),
                   decoration: BoxDecoration(
                     color: AppColors.accent.withValues(alpha: 0.14),
@@ -763,37 +881,33 @@ class _QuickActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = <({
-      IconData icon,
-      String title,
-      String subtitle,
-      VoidCallback onTap,
-    })>[
-      (
-        icon: Icons.record_voice_over_rounded,
-        title: 'Voice',
-        subtitle: 'Speak to translate',
-        onTap: onVoice,
-      ),
-      (
-        icon: Icons.document_scanner_rounded,
-        title: 'Camera',
-        subtitle: 'Scan printed text',
-        onTap: onCamera,
-      ),
-      (
-        icon: Icons.forum_rounded,
-        title: 'Conversation',
-        subtitle: 'Two-way chat',
-        onTap: () => onInfo('Conversation mode is coming next'),
-      ),
-      (
-        icon: Icons.smart_toy_rounded,
-        title: 'AI Tutor',
-        subtitle: 'Practice a language',
-        onTap: () => onInfo('AI assistant needs the Gemini API'),
-      ),
-    ];
+    final items =
+        <({IconData icon, String title, String subtitle, VoidCallback onTap})>[
+          (
+            icon: Icons.record_voice_over_rounded,
+            title: 'Voice',
+            subtitle: 'Speak to translate',
+            onTap: onVoice,
+          ),
+          (
+            icon: Icons.document_scanner_rounded,
+            title: 'Camera',
+            subtitle: 'Translate text live',
+            onTap: onCamera,
+          ),
+          (
+            icon: Icons.forum_rounded,
+            title: 'Conversation',
+            subtitle: 'Two-way chat',
+            onTap: () => onInfo('Conversation mode is coming next'),
+          ),
+          (
+            icon: Icons.smart_toy_rounded,
+            title: 'AI Tutor',
+            subtitle: 'Practice a language',
+            onTap: () => onInfo('AI assistant needs the Gemini API'),
+          ),
+        ];
 
     // A fixed mainAxisExtent keeps tile height stable across screen widths;
     // childAspectRatio would shrink the height on narrow phones and clip.

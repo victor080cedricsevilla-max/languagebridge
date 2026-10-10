@@ -1,5 +1,6 @@
 import '../models/language_model.dart';
 import '../models/lesson_model.dart';
+import 'daily_vocabulary.dart';
 
 /// Bundled vocabulary, available without calling a translation API.
 /// Sources and editorial notes: docs/starter-module-sources.md.
@@ -18,13 +19,14 @@ class StarterModule {
   final String note;
 
   String get id => 'starter-$code';
+  int get wordCount => words.length + dailyVocabulary.length;
   LanguageModel get language => LanguageModel(
     id: id,
     name: name,
     imageUrl: '',
     isActive: true,
     description:
-        '12 beginner words: everyday objects, body, nature, and numbers.${note.isEmpty ? '' : ' $note'}',
+        '$wordCount everyday words: people, food, questions, actions, and more.${note.isEmpty ? '' : ' $note'}',
   );
 
   bool matches(LanguageModel language) =>
@@ -35,8 +37,9 @@ class StarterModule {
             StarterModules.normalize(language.name),
       );
 
-  List<Lesson> lessons({String? languageId}) =>
-      List.generate(words.length, (index) {
+  List<Lesson> lessons({String? languageId, int afterVersion = 0}) => [
+    if (afterVersion < 1)
+      ...List.generate(words.length, (index) {
         final concept = StarterModules.concepts[index];
         return Lesson(
           id: '$id-${concept.id}',
@@ -50,7 +53,22 @@ class StarterModule {
           pronunciation: '',
           sourceUrl: _source(index),
         );
-      });
+      }),
+    if (afterVersion < 2)
+      for (final word in dailyVocabulary)
+        Lesson(
+          id: '$id-${word.id}',
+          languageId: languageId ?? id,
+          title: word.english,
+          description: word.meaning,
+          category: word.category,
+          content: word.words[code]!,
+          translation: word.english,
+          meaning: word.meaning,
+          pronunciation: '',
+          sourceUrl: dailyWordSource(code),
+        ),
+  ];
 
   String _source(int index) {
     if (code == 'hil' && index == 2) {
@@ -82,6 +100,7 @@ class StarterModule {
 }
 
 abstract final class StarterModules {
+  static const contentVersion = 2;
   static String normalize(String text) =>
       text.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
 
@@ -336,14 +355,15 @@ abstract final class StarterModules {
   static List<Lesson> mergeLessons(
     StarterModule module,
     String languageId,
-    List<Lesson> remote,
-  ) {
+    List<Lesson> remote, {
+    int importedVersion = 0,
+  }) {
     final words = remote.map((l) => normalize(l.content)).toSet();
     final ids = remote.map((l) => l.id).toSet();
     return [
       ...remote,
       ...module
-          .lessons(languageId: languageId)
+          .lessons(languageId: languageId, afterVersion: importedVersion)
           .where(
             (l) => !words.contains(normalize(l.content)) && !ids.contains(l.id),
           ),

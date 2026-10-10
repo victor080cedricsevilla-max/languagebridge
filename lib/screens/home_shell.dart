@@ -30,11 +30,11 @@ class _HomeShellState extends State<HomeShell> {
         top: false,
         child: IndexedStack(
           index: _index,
-          children: const [
-            TranslateScreen(),
-            HistoryScreen(),
-            ModuleScreen(),
-            ProfileScreen(),
+          children: [
+            TranslateScreen(isActive: _index == 0),
+            const HistoryScreen(),
+            const ModuleScreen(),
+            const ProfileScreen(),
           ],
         ),
       ),
