@@ -5,10 +5,10 @@ import '../data/app_state.dart';
 import '../models/language_model.dart';
 import '../services/module_repository.dart';
 import '../widgets/state_views.dart';
-import 'language_management_screen.dart';
 import 'module_lesson_screen.dart';
 
-/// Learner entry point; the existing editing tools now live on this tab.
+/// Learner entry point. Modules ship with the app and are read-only here;
+/// new languages and words arrive through app updates.
 class ModuleScreen extends StatelessWidget {
   const ModuleScreen({super.key});
 
@@ -27,7 +27,7 @@ class ModuleScreen extends StatelessWidget {
     }
     return ModuleCatalog(
       key: ValueKey(userId),
-      repository: FirestoreModuleRepository(userId: userId),
+      repository: BundledModuleRepository(userId: userId),
     );
   }
 }
@@ -48,21 +48,7 @@ class _ModuleCatalogState extends State<ModuleCatalog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Module'),
-        actions: [
-          IconButton(
-            tooltip: 'Manage languages & lessons',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const LanguageManagementScreen(),
-              ),
-            ),
-            icon: const Icon(Icons.edit_note_rounded),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Module')),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -145,7 +131,7 @@ class _ModuleCatalogState extends State<ModuleCatalog> {
                     icon: Icons.menu_book_outlined,
                     title: 'Lessons are on their way',
                     message:
-                        'Published language modules will appear here. Use Manage languages & lessons to add learning content.',
+                        'New language modules arrive with app updates.',
                   );
                 }
                 if (languages.isEmpty) {

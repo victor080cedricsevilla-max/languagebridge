@@ -1,21 +1,19 @@
 # Language modules and assessments
 
-The floating navigation now has Translate, History, Module, and Profile.
-The Module tab combines active records from the `languages` collection with
-seven bundled starter modules matching the Philippine translation languages.
-Its edit icon opens the existing language and lesson management screens.
+The floating navigation has Translate, History, Module, and Profile.
+The Module tab lists the seven language modules bundled with the app, one for
+each Philippine translation language. Learners cannot add or edit languages or
+lessons; the content is read-only in the app.
 
 ## Lesson content
 
-Each language is a module. Its `lessons` records are dictionary entries containing
+Each language is a module. Its lessons are dictionary entries containing
 a word or phrase (`content`), translation, meaning/usage, category, and optional
 pronunciation. The reader displays a continuous document with topic headings,
 words, translations, and Filipino meanings, rather than a card for every word.
 Learners can search the entries and revisit them at any time. Search results
 offer **Return to full lesson**; **Take Assessment** appears after the complete
 lesson, alongside the latest assessment score.
-The new `meaning` field is editable in the lesson form. Older records still load;
-their description is displayed when a meaning has not yet been supplied.
 
 The app includes 420 source-referenced entries: 60 each for Filipino / Tagalog,
 Kapampangan, Cebuano, Ilocano, Hiligaynon, Central Bikol, and Pangasinan. These
@@ -23,28 +21,26 @@ cover people and family, questions, food, body parts, nature and weather,
 everyday actions, descriptions, and numbers. Each includes an English
 translation, Filipino explanation, and source URL. The app bar's **Lesson
 references** button groups the reference links and their associated words. They are
-available in the learner view without importing or calling a translation API.
+available offline and without calling a translation API.
 See [the vocabulary and sources](starter-module-sources.md).
 
-To edit or add content:
+## Publishing new content
 
-1. Open **Module → Manage languages & lessons** (the edit icon).
-2. Select **Import starter lessons for editing** once to copy the starter
-   content into Firestore. This requires connectivity and catalog write access.
-3. Open a language, then edit its entries or use **Add Lesson** to add more.
-4. Fill in the word, translation, meaning, category, and optional reference URL.
+Lessons and languages change only through an app update:
 
-Import reuses matching existing language IDs and preserves existing words,
-edits, and inactive flags. Repeating it does not add duplicates. A version
-marker tracks which bundled words have been imported. Version 2 adds 48 words
-per language to the original 12. A version-1 catalog immediately displays the
-new words; importing again saves only that new generation for editing.
-Deleted entries from an already imported generation stay deleted, and edited
-entries remain unchanged. Before import, bundled words supplement cloud content;
-cloud entries with the same word or stable ID take precedence. Deactivate a
-language to hide its module. English remains a translation/gloss language,
-not an additional Philippine starter module. Custom empty modules show an
-empty state rather than an empty quiz.
+1. Add or edit words in `lib/data/starter_modules.dart` (the original 12
+   concepts) or `lib/data/daily_vocabulary.dart` (the everyday vocabulary). To
+   add a dialect, add a `StarterModule` entry and its word in every
+   `dailyVocabulary` item, and add the language to `kLanguages` in
+   `lib/data/mock_data.dart`; the tests require every module to match a
+   translation language.
+2. Keep existing lesson IDs (`starter-{code}-{concept}`) and module IDs
+   (`starter-{code}`) unchanged, so learners' saved assessments stay linked.
+3. Run `flutter test`, bump `version:` in `pubspec.yaml`, and publish the build.
+   Learners receive the new content when they update the app.
+
+English remains a translation/gloss language, not an additional Philippine
+module. A module whose `isActive` is false is hidden.
 
 ## Assessment behavior
 
@@ -70,10 +66,9 @@ current user and language, not a history or personal-best score.
 
 The assessment rules in `firestore.rules` allow only the matching signed-in
 user to access these documents and validate the score range and timestamp.
-Publish this additional rule to the connected Firebase project before testing
-cloud score saving. Keep any existing deployed catalog/admin restrictions;
-the repository's active catalog rules are development rules. This change does
-not automatically publish Firestore rules.
+Firestore stores no catalog: every path other than a user's own history and
+assessments is denied. Changes to `firestore.rules` take effect only after they
+are published to the Firebase project.
 
 ## Verification
 
@@ -86,10 +81,10 @@ repository; live Firebase
 authentication and persistence require a configured project and published rules.
 
 `flutter test test/starter_modules_test.dart` verifies coverage of all seven
-languages, quiz-ready vocabulary, compatibility with older documents, optional
-import idempotence, existing content preservation, deletion after import, and
-version-1 upgrades that add new vocabulary while preserving edits and deletions.
-Import and repository tests use fake Firestore; they do not write live data.
+languages with unique IDs, meanings and references; that the repository serves
+every module offline with quiz-ready lessons; and that the latest assessment is
+saved per learner and module. Assessment tests use an in-memory fake Firestore
+and do not write live data.
 
 The older `test/widget_test.dart` still assumes the removed demo-login flow and
 does not initialize Firebase, so it fails independently of these module tests.

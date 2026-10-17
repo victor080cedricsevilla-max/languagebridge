@@ -22,7 +22,6 @@ const language = LanguageModel(
   id: 'test-language',
   name: 'Cebuano',
   description: 'Everyday words and expressions',
-  imageUrl: '',
   isActive: true,
 );
 
@@ -52,7 +51,6 @@ class MemoryModules implements ModuleRepository {
       id: 'inactive',
       name: 'Hidden module',
       description: '',
-      imageUrl: '',
       isActive: false,
     ),
   ]);

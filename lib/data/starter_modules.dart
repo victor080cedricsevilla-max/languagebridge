@@ -8,13 +8,11 @@ class StarterModule {
   const StarterModule(
     this.code,
     this.name,
-    this.aliases,
     this.words, {
     this.note = '',
   });
   final String code;
   final String name;
-  final List<String> aliases;
   final List<String> words;
   final String note;
 
@@ -23,51 +21,39 @@ class StarterModule {
   LanguageModel get language => LanguageModel(
     id: id,
     name: name,
-    imageUrl: '',
-    isActive: true,
     description:
         '$wordCount everyday words: people, food, questions, actions, and more.${note.isEmpty ? '' : ' $note'}',
   );
 
-  bool matches(LanguageModel language) =>
-      language.id == id ||
-      [name, ...aliases].any(
-        (alias) =>
-            StarterModules.normalize(alias) ==
-            StarterModules.normalize(language.name),
+  List<Lesson> lessons() => [
+    ...List.generate(words.length, (index) {
+      final concept = StarterModules.concepts[index];
+      return Lesson(
+        id: '$id-${concept.id}',
+        languageId: id,
+        title: concept.english,
+        description: 'Beginner vocabulary: ${concept.english.toLowerCase()}.',
+        category: concept.category,
+        content: words[index],
+        translation: concept.english,
+        meaning: concept.meaning,
+        pronunciation: '',
+        sourceUrl: _source(index),
       );
-
-  List<Lesson> lessons({String? languageId, int afterVersion = 0}) => [
-    if (afterVersion < 1)
-      ...List.generate(words.length, (index) {
-        final concept = StarterModules.concepts[index];
-        return Lesson(
-          id: '$id-${concept.id}',
-          languageId: languageId ?? id,
-          title: concept.english,
-          description: 'Beginner vocabulary: ${concept.english.toLowerCase()}.',
-          category: concept.category,
-          content: words[index],
-          translation: concept.english,
-          meaning: concept.meaning,
-          pronunciation: '',
-          sourceUrl: _source(index),
-        );
-      }),
-    if (afterVersion < 2)
-      for (final word in dailyVocabulary)
-        Lesson(
-          id: '$id-${word.id}',
-          languageId: languageId ?? id,
-          title: word.english,
-          description: word.meaning,
-          category: word.category,
-          content: word.words[code]!,
-          translation: word.english,
-          meaning: word.meaning,
-          pronunciation: '',
-          sourceUrl: dailyWordSource(code),
-        ),
+    }),
+    for (final word in dailyVocabulary)
+      Lesson(
+        id: '$id-${word.id}',
+        languageId: id,
+        title: word.english,
+        description: word.meaning,
+        category: word.category,
+        content: word.words[code]!,
+        translation: word.english,
+        meaning: word.meaning,
+        pronunciation: '',
+        sourceUrl: dailyWordSource(code),
+      ),
   ];
 
   String _source(int index) {
@@ -99,17 +85,14 @@ class StarterModule {
   }
 }
 
+/// The modules shipped with this version of the app. Adding a language or
+/// words here and publishing an update is how new content reaches learners.
 abstract final class StarterModules {
-  static const contentVersion = 2;
-  static String normalize(String text) =>
-      text.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
-
   // Words align with the concepts below. No guessed phonetic transcriptions.
   static const all = <StarterModule>[
     StarterModule(
       'tl',
       'Filipino / Tagalog',
-      ['Filipino', 'Tagalog'],
       [
         'tubig',
         'bahay',
@@ -128,7 +111,6 @@ abstract final class StarterModules {
     StarterModule(
       'pam',
       'Kapampangan',
-      ['Pampango'],
       [
         'danum',
         'bale',
@@ -147,7 +129,6 @@ abstract final class StarterModules {
     StarterModule(
       'ceb',
       'Cebuano',
-      ['Sebwano', 'Bisaya', 'Cebuano / Sebwano'],
       [
         'tubig',
         'balay',
@@ -166,7 +147,6 @@ abstract final class StarterModules {
     StarterModule(
       'ilo',
       'Ilocano',
-      ['Ilokano', 'Iloko', 'Ilocano / Ilokano'],
       [
         'danum',
         'balay',
@@ -185,7 +165,6 @@ abstract final class StarterModules {
     StarterModule(
       'hil',
       'Hiligaynon',
-      ['Ilonggo'],
       [
         'tubig',
         'balay',
@@ -204,7 +183,6 @@ abstract final class StarterModules {
     StarterModule(
       'bik',
       'Bikol',
-      ['Central Bikol', 'Bicol', 'Bicolano', 'Bikolano'],
       [
         'tubig',
         'harong',
@@ -224,7 +202,6 @@ abstract final class StarterModules {
     StarterModule(
       'pag',
       'Pangasinan',
-      ['Pangasinense'],
       [
         'danum',
         'abong',
@@ -329,44 +306,10 @@ abstract final class StarterModules {
     ),
   ];
 
-  static StarterModule? forLanguage(LanguageModel language) {
-    for (final module in all) {
-      if (module.matches(language)) return module;
-    }
-    return null;
-  }
-
   static StarterModule? forId(String id) {
     for (final module in all) {
       if (module.id == id) return module;
     }
     return null;
-  }
-
-  /// Existing IDs, edits, and inactive flags take precedence over bundled data.
-  static List<LanguageModel> mergeLanguages(List<LanguageModel> remote) {
-    return [
-      ...remote,
-      for (final module in all)
-        if (!remote.any(module.matches)) module.language,
-    ]..sort((a, b) => a.name.compareTo(b.name));
-  }
-
-  static List<Lesson> mergeLessons(
-    StarterModule module,
-    String languageId,
-    List<Lesson> remote, {
-    int importedVersion = 0,
-  }) {
-    final words = remote.map((l) => normalize(l.content)).toSet();
-    final ids = remote.map((l) => l.id).toSet();
-    return [
-      ...remote,
-      ...module
-          .lessons(languageId: languageId, afterVersion: importedVersion)
-          .where(
-            (l) => !words.contains(normalize(l.content)) && !ids.contains(l.id),
-          ),
-    ];
   }
 }
