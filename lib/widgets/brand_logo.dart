@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-/// The Language Bridge mark: a gradient tile with a translate glyph.
+/// The Language Bridge mark: the app icon (a bridge on an indigo-to-teal
+/// gradient) as a rounded tile, matching the launcher icon.
 class BrandLogo extends StatelessWidget {
   const BrandLogo({super.key, this.size = 64, this.showShadow = true});
 
@@ -11,26 +12,34 @@ class BrandLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        gradient: AppColors.brandGradient,
-        borderRadius: BorderRadius.circular(size * 0.28),
-        boxShadow: showShadow
-            ? [
-                BoxShadow(
-                  color: AppColors.brand.withValues(alpha: 0.35),
-                  blurRadius: size * 0.35,
-                  offset: Offset(0, size * 0.14),
-                ),
-              ]
-            : null,
-      ),
-      child: Icon(
-        Icons.g_translate_rounded,
-        color: Colors.white,
-        size: size * 0.5,
+    final radius = BorderRadius.circular(size * 0.24);
+    return Semantics(
+      label: 'Language Bridge logo',
+      image: true,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          boxShadow: showShadow
+              ? [
+                  BoxShadow(
+                    color: AppColors.brand.withValues(alpha: 0.35),
+                    blurRadius: size * 0.35,
+                    offset: Offset(0, size * 0.14),
+                  ),
+                ]
+              : null,
+        ),
+        child: ClipRRect(
+          borderRadius: radius,
+          child: Image.asset(
+            'assets/branding/icon.png',
+            width: size,
+            height: size,
+            filterQuality: FilterQuality.medium,
+          ),
+        ),
       ),
     );
   }

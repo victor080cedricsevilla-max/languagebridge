@@ -1,0 +1,16 @@
+# App icon generation. After changing the artwork in assets/branding, run:
+#   dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/branding/icon.png"
+  remove_alpha_ios: true
+  min_sdk_android: 23
+  # Android 8+ adaptive icon: the launcher masks it to a circle or squircle,
+  # so the bridge sits inside the safe zone on its own layer.
+  adaptive_icon_background: "assets/branding/icon_background.png"
+  adaptive_icon_foreground: "assets/branding/icon_foreground.png"
+  # The artwork is already sized to the safe zone, so add no extra inset.
+  adaptive_icon_foreground_inset: 0
+  # Android 13+ themed icon.
+  adaptive_icon_monochrome: "assets/branding/icon_foreground.png"
